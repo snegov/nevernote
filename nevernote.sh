@@ -129,9 +129,11 @@ fi
 ## Save page url
 echo $URL > $TMP_DIR/URL
 
+mkdir -p $NEVERNOTE_DIR
 mv $TMP_DIR "$NEVERNOTE_DIR/$PAGE_DIR"
 echo "saved in $NEVERNOTE_DIR/$PAGE_DIR"
 if [ "$TODO" = "yes" ]; then
+	mkdir -p $TODO_DIR
 	ln -s "$NEVERNOTE_DIR/$PAGE_DIR" $TODO_DIR
 fi
 echo $URL >> $HOME/.nevernote/nevernote-list-downloaded
