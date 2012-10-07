@@ -19,6 +19,7 @@ if [ -n "$3" ]; then
 	fi
 fi
 
+mkdir -p $HOME/.nevernote
 TMP_DIR=`mktemp -d $HOME/.nevernote/nevernote.XXXXXX`
 NEVERNOTE_DIR="/mnt/tabula/nevernote/$NOTEBOOK"
 TODO_DIR="/mnt/tabula/nevernote/todo"
