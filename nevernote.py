@@ -1,15 +1,43 @@
 #!/usr/bin/python3
 
 import argparse
+import http.client
 import sys
-import urllib.request
 
+from urllib.parse import urlparse
 
 def get_page(url):
     '''download page and decode it to utf-8'''
-    u = urllib.request.urlopen(url)
-    page_binary = u.read(100)
-    page = page_binary.decode()
+    charset = 'utf-8'
+
+    up = urlparse(url)
+
+    headers = {
+        "Host": up.netloc,
+        "Content-Type": "text/html; charset=utf-8",
+        "Connection": "keep-alive",
+    }
+
+    if up.scheme == 'http':
+        conn = http.client.HTTPConnection(up.netloc)
+    elif up.scheme == 'https':
+        conn = http.client.HTTPSConnection(up.netloc)
+    else:
+        print("ERROR: invalid protocol set in '{0}'".format(url))
+        return False
+
+    conn.request("GET", up.path, None, headers)
+    response = conn.getresponse()
+
+    # determine page charset
+    contenttype = response.getheader('Content-Type')
+    if contenttype:
+        charset = contenttype.split('; ')[1].split('=')[1]
+
+    page_binary = response.read()
+    page = page_binary.decode(charset)
+
+    return page
 
 
 def write_file(page):
