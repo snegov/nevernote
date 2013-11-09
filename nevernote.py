@@ -28,6 +28,11 @@ def get_page(url):
 
     conn.request("GET", up.path, None, headers)
     response = conn.getresponse()
+    if (response.status == http.client.MOVED_PERMANENTLY) \
+            or (response.status == http.client.FOUND):
+        new_url = response.getheader('Location')
+        print('Redirect to ' + new_url)
+        return get_page(new_url)
 
     # get page charset from response header
     contenttype = response.getheader('Content-Type')
