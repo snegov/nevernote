@@ -29,10 +29,12 @@ def get_page(url):
     conn.request("GET", up.path, None, headers)
     response = conn.getresponse()
 
-    # determine page charset
+    # get page charset from response header
     contenttype = response.getheader('Content-Type')
     if contenttype:
-        charset = contenttype.split('; ')[1].split('=')[1]
+        ct_spl = contenttype.split('; ')
+        if len(ct_spl) > 1:
+            charset = ct_spl[1].split('=')[1]
 
     page_binary = response.read()
     page = page_binary.decode(charset)
