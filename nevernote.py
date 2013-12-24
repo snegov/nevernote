@@ -4,6 +4,7 @@ import argparse
 import http.client
 import sys
 
+from bs4 import BeautifulSoup
 from urllib.parse import urlparse
 
 def get_page(url):
@@ -28,6 +29,8 @@ def get_page(url):
 
     conn.request("GET", up.path, None, headers)
     response = conn.getresponse()
+
+    # follow redirects
     if (response.status == http.client.MOVED_PERMANENTLY) \
             or (response.status == http.client.FOUND):
         new_url = response.getheader('Location')
@@ -47,8 +50,14 @@ def get_page(url):
     return page
 
 
+def get_title(page):
+    soup = BeautifulSoup(page)
+    return soup.title.string
+
+
 def write_file(page):
-    with open('tmp.html', 'w') as a_file:
+    fname = get_title(page) + '.html'
+    with open(fname, 'w') as a_file:
         a_file.write(page)
 
 
