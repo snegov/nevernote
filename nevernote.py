@@ -2,10 +2,16 @@
 
 import argparse
 import http.client
+import html.parser
 import sys
-
-from bs4 import BeautifulSoup
 from urllib.parse import urlparse
+
+
+class TitleParser(html.parser.HTMLParser):
+    def handle_data(self, data):
+        if self.lasttag == 'title':
+            self.title = data
+
 
 def get_page(url):
     '''download page and decode it to utf-8'''
@@ -50,13 +56,11 @@ def get_page(url):
     return page
 
 
-def get_title(page):
-    soup = BeautifulSoup(page)
-    return soup.title.string
-
-
 def write_file(page):
-    fname = get_title(page) + '.html'
+    parser = TitleParser(strict=False)
+    parser.feed(page)
+
+    fname = parser.title + '.html'
     with open(fname, 'w') as a_file:
         a_file.write(page)
 
