@@ -18,6 +18,8 @@ def get_page(url):
     charset = 'utf-8'
 
     up = urlparse(url)
+    if not up.scheme:
+        up = urlparse('http://' + url)
 
     headers = {
         "Host": up.netloc,
@@ -30,7 +32,7 @@ def get_page(url):
     elif up.scheme == 'https':
         conn = http.client.HTTPSConnection(up.netloc)
     else:
-        print("ERROR: invalid protocol set in '{0}'".format(url))
+        raise NotImplementedError("protocol %s is not implemented" % up.scheme)
         return False
 
     conn.request("GET", up.path, None, headers)
