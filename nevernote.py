@@ -13,10 +13,8 @@ class TitleParser(html.parser.HTMLParser):
             self.title = data
 
 
-def get_page(url):
+def download_content(url):
     '''download page and decode it to utf-8'''
-    charset = 'utf-8'
-
     up = urlparse(url)
     if not up.scheme:
         up = urlparse('http://' + url)
@@ -33,7 +31,6 @@ def get_page(url):
         conn = http.client.HTTPSConnection(up.netloc)
     else:
         raise NotImplementedError("protocol %s is not implemented" % up.scheme)
-        return False
 
     conn.request("GET", up.path, None, headers)
     response = conn.getresponse()
@@ -43,14 +40,22 @@ def get_page(url):
             or (response.status == http.client.FOUND):
         new_url = response.getheader('Location')
         print('Redirect to ' + new_url)
-        return get_page(new_url)
+        return download_content(new_url)
+    return response
+
+
+def get_page(url):
+    response = download_content(url)
 
     # get page charset from response header
-    contenttype = response.getheader('Content-Type')
-    if contenttype:
-        ct_spl = contenttype.split('; ')
-        if len(ct_spl) > 1:
-            charset = ct_spl[1].split('=')[1]
+    c_type = response.getheader('Content-Type')
+    if not c_type.startswith('text'):
+        raise ValueError('incorrect Content-Type for HTML page: %s' % c_type)
+
+    charset = 'iso-8859-1'
+    ct_spl = c_type.split('; ')
+    if len(ct_spl) > 1:
+        charset = ct_spl[1].split('=')[1]
 
     page_binary = response.read()
     page = page_binary.decode(charset)
