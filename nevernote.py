@@ -5,6 +5,7 @@ import http.client
 import html.parser
 import sys
 from urllib.parse import urlparse
+import zlib
 
 
 class TitleParser(html.parser.HTMLParser):
@@ -52,12 +53,20 @@ def get_page(url):
     if not c_type.startswith('text'):
         raise ValueError('incorrect Content-Type for HTML page: %s' % c_type)
 
+    c_encoding = response.getheader('Content-Encoding')
+    if c_encoding:
+        if c_encoding == 'gzip':
+            page_binary = zlib.decompress(response.read(), 16+zlib.MAX_WBITS)
+        else:
+            raise NotImplementedError(
+                'content encoding %s is not implemented' % c_encoding)
+    else:
+        page_binary = response.read()
+
     charset = 'iso-8859-1'
     ct_spl = c_type.split('; ')
     if len(ct_spl) > 1:
         charset = ct_spl[1].split('=')[1]
-
-    page_binary = response.read()
     page = page_binary.decode(charset)
 
     return page
