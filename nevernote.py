@@ -17,7 +17,7 @@ def download_content(url):
     '''download page and decode it to utf-8'''
     up = urlparse(url)
     if not up.scheme:
-        up = urlparse('http://' + url)
+        up = urlparse('//' + url)
 
     headers = {
         "Host": up.netloc,
@@ -25,7 +25,7 @@ def download_content(url):
         "Connection": "keep-alive",
     }
 
-    if up.scheme == 'http':
+    if not up.scheme or up.scheme == 'http':
         conn = http.client.HTTPConnection(up.netloc)
     elif up.scheme == 'https':
         conn = http.client.HTTPSConnection(up.netloc)
@@ -36,8 +36,8 @@ def download_content(url):
     response = conn.getresponse()
 
     # follow redirects
-    if (response.status == http.client.MOVED_PERMANENTLY) \
-            or (response.status == http.client.FOUND):
+    if ((response.status == http.client.MOVED_PERMANENTLY)
+            or (response.status == http.client.FOUND)):
         new_url = response.getheader('Location')
         print('Redirect to ' + new_url)
         return download_content(new_url)
@@ -73,10 +73,10 @@ def write_file(page):
 
 
 def main():
-    parser = argparse.ArgumentParser(description=
-            'Nevernote - download pages locally.')
-    parser.add_argument('urls', metavar='URL', type=str, nargs='+', help=
-            'URL of page to download')
+    parser = argparse.ArgumentParser(
+        description='Nevernote - download pages locally.')
+    parser.add_argument('urls', metavar='URL', type=str, nargs='+',
+        help='URL of page to download')
 
     args = parser.parse_args()
 
