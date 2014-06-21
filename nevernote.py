@@ -3,6 +3,7 @@
 import argparse
 import http.client
 import html.parser
+import os.path
 import sys
 from urllib.parse import urlparse
 import zlib
@@ -74,21 +75,23 @@ def get_page(url):
     return page
 
 
-def write_file(page):
+def write_file(page, comment=None):
     parser = TitleParser(strict=False)
     parser.feed(page)
 
     fname = parser.title.replace('/', '_') + '.html'
     inc = 1
     while True:
-        try:
-            with open(fname, 'x') as a_file:
-                print('Saving in file "%s"' % fname)
-                a_file.write(page)
-                break
-        except FileExistsError:
-            inc += 1
-            fname = parser.title.replace('/', '_') + '_%d.html' % inc
+        if not os.path.exists(fname):
+            break
+        inc += 1
+        fname = parser.title.replace('/', '_') + '_%d.html' % inc
+
+    with open(fname, 'x', newline='\n') as a_file:
+        print('Saving in file "%s"' % fname)
+        if comment:
+            a_file.write('<!-- URL: %s -->' % comment)
+        a_file.write(page)
 
 
 def main():
@@ -101,7 +104,7 @@ def main():
 
     for url in args.urls:
         page = get_page(url)
-        write_file(page)
+        write_file(page, comment=url)
 
 
 if __name__ == '__main__':
