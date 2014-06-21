@@ -26,7 +26,7 @@ def download_content(url):
         "Connection": "keep-alive",
     }
 
-    if not up.scheme or up.scheme == 'http':
+    if up.scheme == 'http':
         conn = http.client.HTTPConnection(up.netloc)
     elif up.scheme == 'https':
         conn = http.client.HTTPSConnection(up.netloc)
@@ -40,7 +40,7 @@ def download_content(url):
     if ((response.status == http.client.MOVED_PERMANENTLY)
             or (response.status == http.client.FOUND)):
         new_url = response.getheader('Location')
-        print('Redirect to ' + new_url)
+        print('Redirecting to ' + new_url)
         return download_content(new_url)
     return response
 
