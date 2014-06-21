@@ -78,9 +78,17 @@ def write_file(page):
     parser = TitleParser(strict=False)
     parser.feed(page)
 
-    fname = parser.title + '.html'
-    with open(fname, 'w') as a_file:
-        a_file.write(page)
+    fname = parser.title.replace('/', '_') + '.html'
+    inc = 1
+    while True:
+        try:
+            with open(fname, 'x') as a_file:
+                print('Saving in file "%s"' % fname)
+                a_file.write(page)
+                break
+        except FileExistsError:
+            inc += 1
+            fname = parser.title.replace('/', '_') + '_%d.html' % inc
 
 
 def main():
