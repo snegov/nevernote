@@ -9,9 +9,11 @@ import zlib
 
 
 class TitleParser(html.parser.HTMLParser):
-    def handle_data(self, data):
-        if self.lasttag == 'title':
-            self.title = data
+    def handle_starttag(self, name, attribs):
+        if name == 'title':
+            title_start = self.rawdata.index('<title>') + len('<title>')
+            title_end = self.rawdata.index('</title>', title_start)
+            self.title = self.rawdata[title_start:title_end]
 
 
 def download_content(url):
