@@ -17,6 +17,7 @@ class TitleParser(html.parser.HTMLParser):
     def __init__(self, *args, **kwargs):
         html.parser.HTMLParser.__init__(self, *args, **kwargs)
         self.images = set()
+        self.css = set()
 
     def handle_starttag(self, name, attribs):
         if name == 'img':
@@ -28,6 +29,10 @@ class TitleParser(html.parser.HTMLParser):
             title_start = self.rawdata.index('>', titletag_start) + 1
             title_end = self.rawdata.index('</title>', title_start)
             self.title = self.rawdata[title_start:title_end]
+        elif name == 'link':
+            attr_dict = dict(attribs)
+            if attr_dict.get('rel') == 'stylesheet':
+                self.css.add(attr_dict['href'])
 
 
 def download_content(url, depth=0):
@@ -111,6 +116,22 @@ def embed_pictures(page, pict_urls, base_url=None):
     return page
 
 
+def embed_css(page, css_urls, base_url=None):
+    for url in css_urls:
+        if not url:
+            continue
+        print('New CSS: %s' % url)
+        try:
+            css_start = page.rindex('<', 0, page.index(url))
+            css_end = page.index('>', css_start) + 1
+            css = ('<style media="screen" type="text/css">%s</style>'
+                   % get_page(complete_url(url, base_url)))
+            page = page[:css_start] + css + page[css_end:]
+        except (InfiniteRedirects, ConnectionRefusedError):
+            pass
+    return page
+
+
 def write_file(page, title, comment=None):
     write_inc = lambda i: '_%d' % i if i > 1 else ''
     inc = 0
@@ -148,6 +169,7 @@ def main():
         parser.feed(page)
 
         page = embed_pictures(page, parser.images, base_url=url)
+        page = embed_css(page, parser.css, base_url=url)
         write_file(page, parser.title, comment=url)
 
 
