@@ -52,7 +52,7 @@ def download_content(url, depth=0):
     else:
         raise NotImplementedError("protocol %s is not implemented" % up.scheme)
 
-    conn.request("GET", up.path, None, headers)
+    conn.request("GET", '?'.join((up.path, up.query)), None, headers)
     response = conn.getresponse()
 
     # follow redirects
