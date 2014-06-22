@@ -106,7 +106,7 @@ def embed_pictures(page, pict_urls):
         print('New picture: %s' % url)
         try:
             page = page.replace(url, embedded_image(url))
-        except (ValueError, InfiniteRedirects):
+        except (ValueError, InfiniteRedirects, ConnectionRefusedError):
             pass
     return page
 
