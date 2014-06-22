@@ -41,7 +41,6 @@ def download_content(url, depth=0):
 
     headers = {
         "Host": up.netloc,
-        "Content-Type": "text/html; charset=utf-8",
         "Connection": "keep-alive",
     }
 
