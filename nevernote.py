@@ -10,6 +10,9 @@ from urllib.parse import urlparse
 import zlib
 
 
+class InfiniteRedirects(Exception): pass
+
+
 class TitleParser(html.parser.HTMLParser):
     def __init__(self, *args, **kwargs):
         html.parser.HTMLParser.__init__(self, *args, **kwargs)
@@ -26,8 +29,11 @@ class TitleParser(html.parser.HTMLParser):
             self.title = self.rawdata[title_start:title_end]
 
 
-def download_content(url):
+def download_content(url, depth=0):
     '''download page and decode it to utf-8'''
+    if depth > 10:
+        raise InfiniteRedirects('too much redirects: %s' % url)
+
     up = urlparse(url)
     if not up.scheme:
         up = urlparse('//' + url)
@@ -53,7 +59,7 @@ def download_content(url):
             or (response.status == http.client.FOUND)):
         new_url = response.getheader('Location')
         print('Redirecting to ' + new_url)
-        return download_content(new_url)
+        return download_content(new_url, depth+1)
     return response
 
 
@@ -99,7 +105,7 @@ def embed_pictures(page, pict_urls):
         print('New picture: %s' % url)
         try:
             page = page.replace(url, embedded_image(url))
-        except (ValueError):
+        except (ValueError, InfiniteRedirects):
             pass
     return page
 
