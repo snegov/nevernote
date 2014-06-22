@@ -24,7 +24,8 @@ class TitleParser(html.parser.HTMLParser):
                 if attr == 'src':
                     self.images.add(value)
         elif name == 'title':
-            title_start = self.rawdata.index('<title>') + len('<title>')
+            titletag_start = self.rawdata.index('<title')
+            title_start = self.rawdata.index('>', titletag_start) + 1
             title_end = self.rawdata.index('</title>', title_start)
             self.title = self.rawdata[title_start:title_end]
 
