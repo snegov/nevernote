@@ -112,13 +112,13 @@ def embed_pictures(page, pict_urls):
 
 
 def write_file(page, title, comment=None):
-    fname = ' '.join(title.replace('/', '_').split()) + '.html'
-    inc = 1
+    write_inc = lambda i: '_%d' % i if i > 1 else ''
+    inc = 0
     while True:
+        inc += 1
+        fname = ' '.join(title.replace('/', '_').split()) + write_inc(inc) + '.html'
         if not os.path.exists(fname):
             break
-        inc += 1
-        fname = title.replace('/', '_') + '_%d.html' % inc
 
     with open(fname, 'x', newline='\n') as a_file:
         print('Saving in file "%s"' % fname)
