@@ -101,11 +101,12 @@ def embedded_image(url):
     return 'data:%s;base64,%s' % (ctype, b64pict)
 
 
-def embed_pictures(page, pict_urls):
+def embed_pictures(page, pict_urls, base_url=None):
     for url in pict_urls:
         print('New picture: %s' % url)
         try:
-            page = page.replace(url, embedded_image(url))
+            page = page.replace(
+                url, embedded_image(complete_url(url, base_url)))
         except (ValueError, InfiniteRedirects, ConnectionRefusedError):
             pass
     return page
@@ -127,6 +128,14 @@ def write_file(page, title, comment=None):
             a_file.write('<!-- URL: %s -->' % comment)
 
 
+def complete_url(url, base_url):
+    if base_url is not None:
+        up = urlparse(url)
+        if not up.netloc:
+            url = '//' + urlparse(base_url).netloc + url
+    return url
+
+
 def main():
     parser = argparse.ArgumentParser(
         description='Nevernote - download pages locally.')
@@ -139,15 +148,8 @@ def main():
         parser = TitleParser(strict=False)
         parser.feed(page)
 
-        for picturl in parser.images:
-            up = urlparse(picturl)
-            if not up.netloc:
-                parser.images.remove(picturl)
-                picturl = '//' + urlparse(url).netloc + picturl
-                parser.images.add(picturl)
-
-        full_page = embed_pictures(page, parser.images)
-        write_file(full_page, parser.title, comment=url)
+        page = embed_pictures(page, parser.images, base_url=url)
+        write_file(page, parser.title, comment=url)
 
 
 if __name__ == '__main__':
