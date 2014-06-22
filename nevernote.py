@@ -35,7 +35,7 @@ def download_content(url, depth=0):
         raise InfiniteRedirects('too much redirects: %s' % url)
 
     up = urlparse(url)
-    if not up.scheme:
+    if not up.netloc:
         up = urlparse('//' + url)
 
     headers = {
@@ -44,7 +44,7 @@ def download_content(url, depth=0):
         "Connection": "keep-alive",
     }
 
-    if up.scheme == 'http':
+    if not up.scheme or up.scheme == 'http':
         conn = http.client.HTTPConnection(up.netloc)
     elif up.scheme == 'https':
         conn = http.client.HTTPSConnection(up.netloc)
