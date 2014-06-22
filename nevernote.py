@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 
 import argparse
+import base64
 import http.client
 import html.parser
 import os.path
@@ -10,8 +11,16 @@ import zlib
 
 
 class TitleParser(html.parser.HTMLParser):
+    def __init__(self, *args, **kwargs):
+        html.parser.HTMLParser.__init__(self, *args, **kwargs)
+        self.images = set()
+
     def handle_starttag(self, name, attribs):
-        if name == 'title':
+        if name == 'img':
+            for attr, value in attribs:
+                if attr == 'src':
+                    self.images.add(value)
+        elif name == 'title':
             title_start = self.rawdata.index('<title>') + len('<title>')
             title_end = self.rawdata.index('</title>', title_start)
             self.title = self.rawdata[title_start:title_end]
@@ -75,23 +84,40 @@ def get_page(url):
     return page
 
 
-def write_file(page, comment=None):
-    parser = TitleParser(strict=False)
-    parser.feed(page)
+def embedded_image(url):
+    '''Download content from URL and return bytes if target is image'''
+    response = download_content(url)
+    ctype = response.getheader('Content-Type')
+    if not ctype or not ctype.startswith('image'):
+        raise ValueError('incorrect Content-Type for image: %s' % ctype)
+    b64pict = base64.b64encode(response.read()).decode()
+    return 'data:%s;base64,%s' % (ctype, b64pict)
 
-    fname = parser.title.replace('/', '_') + '.html'
+
+def embed_pictures(page, pict_urls):
+    for url in pict_urls:
+        print('New picture: %s' % url)
+        try:
+            page = page.replace(url, embedded_image(url))
+        except (ValueError):
+            pass
+    return page
+
+
+def write_file(page, title, comment=None):
+    fname = title.replace('/', '_') + '.html'
     inc = 1
     while True:
         if not os.path.exists(fname):
             break
         inc += 1
-        fname = parser.title.replace('/', '_') + '_%d.html' % inc
+        fname = title.replace('/', '_') + '_%d.html' % inc
 
     with open(fname, 'x', newline='\n') as a_file:
         print('Saving in file "%s"' % fname)
+        a_file.write(page)
         if comment:
             a_file.write('<!-- URL: %s -->' % comment)
-        a_file.write(page)
 
 
 def main():
@@ -99,12 +125,22 @@ def main():
         description='Nevernote - download pages locally.')
     parser.add_argument('urls', metavar='URL', type=str, nargs='+',
         help='URL of page to download')
-
     args = parser.parse_args()
 
     for url in args.urls:
         page = get_page(url)
-        write_file(page, comment=url)
+        parser = TitleParser(strict=False)
+        parser.feed(page)
+
+        for picturl in parser.images:
+            up = urlparse(picturl)
+            if not up.netloc:
+                parser.images.remove(picturl)
+                picturl = '//' + urlparse(url).netloc + picturl
+                parser.images.add(picturl)
+
+        full_page = embed_pictures(page, parser.images)
+        write_file(full_page, parser.title, comment=url)
 
 
 if __name__ == '__main__':
