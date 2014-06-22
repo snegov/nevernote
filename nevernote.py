@@ -112,7 +112,7 @@ def embed_pictures(page, pict_urls):
 
 
 def write_file(page, title, comment=None):
-    fname = title.replace('/', '_') + '.html'
+    fname = ' '.join(title.replace('/', '_').split()) + '.html'
     inc = 1
     while True:
         if not os.path.exists(fname):
