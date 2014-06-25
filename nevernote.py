@@ -91,7 +91,7 @@ def get_page(url):
     ct_spl = c_type.split('; ')
     if len(ct_spl) > 1:
         charset = ct_spl[1].split('=')[1]
-    page = page_binary.decode(charset)
+    page = page_binary.decode(charset, errors='ignore')
 
     return page
 
