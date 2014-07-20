@@ -45,9 +45,11 @@ def get_text(url, content='text/html'):
         raise RuntimeError('None content type for %s' % url)
     if not ctype.startswith(content):
         raise RuntimeError('Incorrect content-type for %s: %s' % (url, ctype))
-    encoding = ctype.split(';')[1].split('=')[1].lower()
+
+    # get charset from 'Content-type' header
+    charset = ctype.split(';')[1].split('=')[1] if 'charset' in ctype else 'utf-8'
     data = u.read()
-    page = data.decode(encoding)
+    page = data.decode(charset.lower())
     return page
 
 
