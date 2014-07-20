@@ -21,12 +21,17 @@ class TitleParser(html.parser.HTMLParser):
         html.parser.HTMLParser.__init__(self, *args, **kwargs)
         self.images = set()
         self.css = set()
+        self.scripts = set()
 
     def handle_starttag(self, name, attribs):
         if name == 'img':
             for attr, value in attribs:
                 if attr == 'src':
                     self.images.add(value)
+        elif name == 'script':
+            for attr, value in attribs:
+                if attr == 'src':
+                    self.scripts.add(value)
         elif name == 'title':
             titletag_start = self.rawdata.index('<title')
             title_start = self.rawdata.index('>', titletag_start) + 1
@@ -118,6 +123,22 @@ def embed_css(page, css_urls, base_url=None):
     return page
 
 
+def embed_scripts(page, script_urls, base_url=None):
+    # fetch charset from base URL or use default UTF-8
+    if base_url is not None:
+        hdr = urlopen(base_url).headers.get('content-type')
+        base_char = charset_header(hdr) if hdr is not None else None
+        base_char = base_char or 'utf-8'
+    for url in script_urls:
+        if not url:
+            continue
+        print('New script: %s' % url)
+        script_link = ' src="%s"' % url
+        print(script_link)
+        page = page.replace(script_link, '')
+    return page
+
+
 def url_duplicate(url):
     for htmlfile in os.listdir():
         if not htmlfile.endswith('.html'):
@@ -171,6 +192,7 @@ def process_url(url):
 
         page = embed_pictures(page, parser.images, base_url=url)
         page = embed_css(page, parser.css, base_url=url)
+        page = embed_scripts(page, parser.scripts, base_url=url)
     except urllib.error.HTTPError as e:
         print(e)
         return False
