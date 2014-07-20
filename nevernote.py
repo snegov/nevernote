@@ -172,7 +172,7 @@ def process_url(url):
         page = embed_pictures(page, parser.images, base_url=url)
         page = embed_css(page, parser.css, base_url=url)
     except urllib.error.HTTPError as e:
-        print('Error with URL "%s": %s' % (url,e))
+        print(e)
         return False
 
     write_file(page, parser.title, comment=url)
