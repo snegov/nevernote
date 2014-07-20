@@ -157,12 +157,18 @@ def process_url(url):
     except UrlDuplicateError as e:
         print(e)
         return
-    page = get_text(url)
-    parser = TitleParser(strict=False)
-    parser.feed(page)
 
-    page = embed_pictures(page, parser.images, base_url=url)
-    page = embed_css(page, parser.css, base_url=url)
+    try:
+        page = get_text(url)
+        parser = TitleParser(strict=False)
+        parser.feed(page)
+
+        page = embed_pictures(page, parser.images, base_url=url)
+        page = embed_css(page, parser.css, base_url=url)
+    except urllib.error.HTTPError as e:
+        print('Error with URL "%s": %s' % (url,e))
+        return False
+
     write_file(page, parser.title, comment=url)
 
 
