@@ -95,9 +95,9 @@ def write_file(page, title, comment=None):
 
     with open(fname, 'x', newline='\n') as a_file:
         print('Saving in file "%s"' % fname)
-        a_file.write(page)
         if comment:
-            a_file.write('<!-- URL: %s -->' % comment)
+            a_file.write('<!-- URL: %s -->\n' % comment)
+        a_file.write(page)
 
 
 def complete_url(url, base_url):
