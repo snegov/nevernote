@@ -3,13 +3,16 @@
 import argparse
 import base64
 import html.parser
+import os
 import os.path
+import re
 import sys
 from urllib.parse import urlparse
 from urllib.request import urlopen
 
 
-class InfiniteRedirects(Exception): pass
+class UrlDuplicateError(Exception): pass
+URLDUP = re.compile(r'^<!-- URL: (.*) -->$')
 
 
 class TitleParser(html.parser.HTMLParser):
@@ -66,7 +69,7 @@ def embed_pictures(page, pict_urls, base_url=None):
         try:
             page = page.replace(
                 url, embedded_image(complete_url(url, base_url)))
-        except (ValueError, InfiniteRedirects, ConnectionRefusedError):
+        except (ValueError, ConnectionRefusedError):
             pass
     return page
 
@@ -82,6 +85,17 @@ def embed_css(page, css_urls, base_url=None):
                % get_text(complete_url(url, base_url), 'text/css'))
         page = page[:css_start] + css_tag + page[css_end:]
     return page
+
+
+def url_duplicate(url):
+    for htmlfile in os.listdir():
+        if not htmlfile.endswith('.html'):
+            continue
+        with open(htmlfile) as h:
+            h_url = h.readline()
+            if url in URLDUP.findall(h_url):
+                raise UrlDuplicateError(
+                    'URL is already saved in file "%s"' % htmlfile)
 
 
 def write_file(page, title, comment=None):
@@ -117,6 +131,11 @@ def main():
     args = parser.parse_args()
 
     for url in args.urls:
+        try:
+            url_duplicate(url)
+        except UrlDuplicateError as e:
+            print(e)
+            continue
         page = get_text(url)
         parser = TitleParser(strict=False)
         parser.feed(page)
