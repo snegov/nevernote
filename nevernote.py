@@ -8,6 +8,7 @@ import re
 import sys
 from urllib.parse import urlparse
 from urllib.request import urlopen
+import zlib
 
 
 class UrlDuplicateError(Exception): pass
@@ -37,10 +38,10 @@ class TitleParser(html.parser.HTMLParser):
 
 
 def get_text(url, content='text/html'):
-    u = urlopen(url)
-    if u.status != 200:
+    response = urlopen(url)
+    if response.status != 200:
         raise RuntimeError('Incorrect HTTP status for %s' % url)
-    ctype = u.headers.get('content-type')
+    ctype = response.headers.get('content-type')
     if ctype is None:
         raise RuntimeError('None content type for %s' % url)
     if not ctype.startswith(content):
@@ -48,7 +49,11 @@ def get_text(url, content='text/html'):
 
     # get charset from 'Content-type' header
     charset = ctype.split(';')[1].split('=')[1] if 'charset' in ctype else 'utf-8'
-    data = u.read()
+
+    if response.info().get('Content-Encoding') == 'gzip':
+        data = zlib.decompress(response.read(), 16+zlib.MAX_WBITS)
+    else:
+        data = response.read()
     page = data.decode(charset.lower())
     return page
 
