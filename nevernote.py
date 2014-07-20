@@ -4,7 +4,6 @@ import argparse
 import base64
 import html.parser
 import os
-import os.path
 import re
 import sys
 from urllib.parse import urlparse
