@@ -89,7 +89,7 @@ def embed_pictures(page, pict_urls, base_url=None):
         try:
             page = page.replace(
                 url, embedded_image(complete_url(url, base_url)))
-        except (IncorrectHTTPStatus, urllib.error.HTTPError):
+        except urllib.error.HTTPError:
             pass
     return page
 
