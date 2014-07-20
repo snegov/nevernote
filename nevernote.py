@@ -52,8 +52,11 @@ def charset_header(content_type):
 def get_text(url, content='text/html', charset='utf-8'):
     response = urlopen(url)
     if response.status != 200:
-        raise urllib.error.HTTPError('Incorrect HTTP status (%d, %s) for %s' % (
-                response.status, response.reason, url))
+        raise urllib.error.HTTPError(
+            url, response.status,
+            'Incorrect HTTP status (%d, %s) for %s' % (response.status, response.reason, url),
+            None, None
+        )
     ctype = response.headers.get('content-type')
     if ctype is None:
         raise RuntimeError('None content type for %s' % url)
@@ -73,12 +76,15 @@ def get_text(url, content='text/html', charset='utf-8'):
 
 def embedded_image(url):
     '''Download content from URL and return bytes if target is image'''
-    u = urlopen(url)
-    if u.status != 200:
-        raise urllib.error.HTTPError('Incorrect HTTP status (%d, %s) for %s' % (
-                u.status, u.reason, url))
-    ctype = u.headers.get('Content-Type')
-    data = u.read()
+    response = urlopen(url)
+    if response.status != 200:
+        raise urllib.error.HTTPError(
+            url, response.status,
+            'Incorrect HTTP status (%d, %s) for %s' % (response.status, response.reason, url),
+            None, None
+        )
+    ctype = response.headers.get('Content-Type')
+    data = response.read()
     b64pict = base64.b64encode(data).decode()
     return 'data:%s;base64,%s' % (ctype, b64pict)
 
