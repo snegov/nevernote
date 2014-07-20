@@ -6,6 +6,7 @@ import html.parser
 import os
 import re
 import sys
+import urllib.error
 from urllib.parse import urlparse
 from urllib.request import urlopen
 import zlib
@@ -37,10 +38,22 @@ class TitleParser(html.parser.HTMLParser):
                 self.css.add(attr_dict['href'])
 
 
-def get_text(url, content='text/html'):
+def charset_header(content_type):
+    """ Parse charset from 'content-type' header
+    :param content_type: string
+    :return: string with character set
+    """
+    if 'charset' in content_type:
+        return content_type.split(';')[1].split('=')[1]
+    else:
+        return None
+
+
+def get_text(url, content='text/html', charset='utf-8'):
     response = urlopen(url)
     if response.status != 200:
-        raise RuntimeError('Incorrect HTTP status for %s' % url)
+        raise urllib.error.HTTPError('Incorrect HTTP status (%d, %s) for %s' % (
+                response.status, response.reason, url))
     ctype = response.headers.get('content-type')
     if ctype is None:
         raise RuntimeError('None content type for %s' % url)
@@ -48,7 +61,7 @@ def get_text(url, content='text/html'):
         raise RuntimeError('Incorrect content-type for %s: %s' % (url, ctype))
 
     # get charset from 'Content-type' header
-    charset = ctype.split(';')[1].split('=')[1] if 'charset' in ctype else 'utf-8'
+    charset = charset_header(ctype) or charset
 
     if response.info().get('Content-Encoding') == 'gzip':
         data = zlib.decompress(response.read(), 16+zlib.MAX_WBITS)
@@ -61,8 +74,9 @@ def get_text(url, content='text/html'):
 def embedded_image(url):
     '''Download content from URL and return bytes if target is image'''
     u = urlopen(url)
-    if u.getcode() != 200:
-        raise RuntimeError('Incorrect status for %s' % url)
+    if u.status != 200:
+        raise urllib.error.HTTPError('Incorrect HTTP status (%d, %s) for %s' % (
+                u.status, u.reason, url))
     ctype = u.headers.get('Content-Type')
     data = u.read()
     b64pict = base64.b64encode(data).decode()
@@ -75,20 +89,23 @@ def embed_pictures(page, pict_urls, base_url=None):
         try:
             page = page.replace(
                 url, embedded_image(complete_url(url, base_url)))
-        except (ValueError, ConnectionRefusedError):
+        except (IncorrectHTTPStatus, urllib.error.HTTPError):
             pass
     return page
 
 
 def embed_css(page, css_urls, base_url=None):
+    if base_url is not None:
+        hdr = urlopen(base_url).headers.get('content-type')
+        base_char = charset_header(hdr) if hdr is not None else 'utf-8'
     for url in css_urls:
         if not url:
             continue
         print('New CSS: %s' % url)
         css_start = page.rindex('<', 0, page.index(url))
         css_end = page.index('>', css_start) + 1
-        css_tag = ('<style media="screen" type="text/css">%s</style>'
-               % get_text(complete_url(url, base_url), 'text/css'))
+        css_tag = ('<style media="screen" type="text/css">%s</style>' % get_text(
+            complete_url(url, base_url), content='text/css',charset=base_char))
         page = page[:css_start] + css_tag + page[css_end:]
     return page
 
