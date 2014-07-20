@@ -126,6 +126,22 @@ def complete_url(url, base_url):
     return url
 
 
+def process_url(url):
+    print('Processing URL: %s' % url)
+    try:
+        url_duplicate(url)
+    except UrlDuplicateError as e:
+        print(e)
+        return
+    page = get_text(url)
+    parser = TitleParser(strict=False)
+    parser.feed(page)
+
+    page = embed_pictures(page, parser.images, base_url=url)
+    page = embed_css(page, parser.css, base_url=url)
+    write_file(page, parser.title, comment=url)
+
+
 def main():
     parser = argparse.ArgumentParser(
         description='Nevernote - download pages locally.')
@@ -133,19 +149,13 @@ def main():
         help='URL of page to download')
     args = parser.parse_args()
 
-    for url in args.urls:
-        try:
-            url_duplicate(url)
-        except UrlDuplicateError as e:
-            print(e)
-            continue
-        page = get_text(url)
-        parser = TitleParser(strict=False)
-        parser.feed(page)
-
-        page = embed_pictures(page, parser.images, base_url=url)
-        page = embed_css(page, parser.css, base_url=url)
-        write_file(page, parser.title, comment=url)
+    for arg in args.urls:
+        if os.path.isfile(arg):
+            print('Found file %s' % arg)
+            for url in (line.strip() for line in open(arg)):
+                process_url(url)
+        else:
+            process_url(arg)
 
 
 if __name__ == '__main__':
