@@ -119,6 +119,8 @@ def complete_url(url, base_url):
         up = urlparse(url)
         if not up.netloc:
             url = base_up.scheme + '://' + base_up.netloc + url
+        elif not up.scheme:
+            url = base_up.scheme + ':' + url
     return url
 
 
