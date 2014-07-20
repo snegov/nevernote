@@ -95,9 +95,11 @@ def embed_pictures(page, pict_urls, base_url=None):
 
 
 def embed_css(page, css_urls, base_url=None):
+    # fetch charset from base URL or use default UTF-8
     if base_url is not None:
         hdr = urlopen(base_url).headers.get('content-type')
-        base_char = charset_header(hdr) if hdr is not None else 'utf-8'
+        base_char = charset_header(hdr) if hdr is not None else None
+        base_char = base_char or 'utf-8'
     for url in css_urls:
         if not url:
             continue
