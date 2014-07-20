@@ -2,12 +2,11 @@
 
 import argparse
 import base64
-import http.client
 import html.parser
 import os.path
 import sys
 from urllib.parse import urlparse
-import zlib
+from urllib.request import urlopen
 
 
 class InfiniteRedirects(Exception): pass
@@ -35,74 +34,29 @@ class TitleParser(html.parser.HTMLParser):
                 self.css.add(attr_dict['href'])
 
 
-def download_content(url, depth=0):
-    '''download page and decode it to utf-8'''
-    if depth > 10:
-        raise InfiniteRedirects('too much redirects: %s' % url)
-
-    up = urlparse(url)
-    if not up.netloc:
-        up = urlparse('//' + url)
-
-    headers = {
-        "Host": up.netloc,
-        "Connection": "keep-alive",
-    }
-
-    if not up.scheme or up.scheme == 'http':
-        conn = http.client.HTTPConnection(up.netloc)
-    elif up.scheme == 'https':
-        conn = http.client.HTTPSConnection(up.netloc)
-    else:
-        raise NotImplementedError("protocol %s is not implemented" % up.scheme)
-
-    requrl = ('?'.join((up.path, up.query)) if up.query else up.path) or '/'
-    conn.request("GET", requrl, None, headers)
-    response = conn.getresponse()
-
-    # follow redirects
-    if ((response.status == http.client.MOVED_PERMANENTLY)
-            or (response.status == http.client.FOUND)):
-        new_url = response.getheader('Location')
-        print('Redirecting to ' + new_url)
-        return download_content(new_url, depth+1)
-    return response
-
-
-def get_page(url):
-    response = download_content(url)
-
-    # get page charset from response header
-    c_type = response.getheader('Content-Type')
-    if not c_type.startswith('text'):
-        raise ValueError('incorrect Content-Type for HTML page: %s' % c_type)
-
-    c_encoding = response.getheader('Content-Encoding')
-    if c_encoding:
-        if c_encoding == 'gzip':
-            page_binary = zlib.decompress(response.read(), 16+zlib.MAX_WBITS)
-        else:
-            raise NotImplementedError(
-                'content encoding %s is not implemented' % c_encoding)
-    else:
-        page_binary = response.read()
-
-    charset = 'iso-8859-1'
-    ct_spl = c_type.split('; ')
-    if len(ct_spl) > 1:
-        charset = ct_spl[1].split('=')[1]
-    page = page_binary.decode(charset, errors='ignore')
-
+def get_text(url, content='text/html'):
+    u = urlopen(url)
+    if u.status != 200:
+        raise RuntimeError('Incorrect HTTP status for %s' % url)
+    ctype = u.headers.get('content-type')
+    if ctype is None:
+        raise RuntimeError('None content type for %s' % url)
+    if not ctype.startswith(content):
+        raise RuntimeError('Incorrect content-type for %s: %s' % (url, ctype))
+    encoding = ctype.split(';')[1].split('=')[1].lower()
+    data = u.read()
+    page = data.decode(encoding)
     return page
 
 
 def embedded_image(url):
     '''Download content from URL and return bytes if target is image'''
-    response = download_content(url)
-    ctype = response.getheader('Content-Type')
-    if not ctype or not ctype.startswith('image'):
-        raise ValueError('incorrect Content-Type for image: %s' % ctype)
-    b64pict = base64.b64encode(response.read()).decode()
+    u = urlopen(url)
+    if u.getcode() != 200:
+        raise RuntimeError('Incorrect status for %s' % url)
+    ctype = u.headers.get('Content-Type')
+    data = u.read()
+    b64pict = base64.b64encode(data).decode()
     return 'data:%s;base64,%s' % (ctype, b64pict)
 
 
@@ -122,14 +76,11 @@ def embed_css(page, css_urls, base_url=None):
         if not url:
             continue
         print('New CSS: %s' % url)
-        try:
-            css_start = page.rindex('<', 0, page.index(url))
-            css_end = page.index('>', css_start) + 1
-            css = ('<style media="screen" type="text/css">%s</style>'
-                   % get_page(complete_url(url, base_url)))
-            page = page[:css_start] + css + page[css_end:]
-        except (InfiniteRedirects, ConnectionRefusedError):
-            pass
+        css_start = page.rindex('<', 0, page.index(url))
+        css_end = page.index('>', css_start) + 1
+        css_tag = ('<style media="screen" type="text/css">%s</style>'
+               % get_text(complete_url(url, base_url), 'text/css'))
+        page = page[:css_start] + css_tag + page[css_end:]
     return page
 
 
@@ -150,10 +101,11 @@ def write_file(page, title, comment=None):
 
 
 def complete_url(url, base_url):
+    base_up = urlparse(base_url)
     if base_url is not None:
         up = urlparse(url)
         if not up.netloc:
-            url = '//' + urlparse(base_url).netloc + url
+            url = base_up.scheme + '://' + base_up.netloc + url
     return url
 
 
@@ -165,7 +117,7 @@ def main():
     args = parser.parse_args()
 
     for url in args.urls:
-        page = get_page(url)
+        page = get_text(url)
         parser = TitleParser(strict=False)
         parser.feed(page)
 
