@@ -54,7 +54,7 @@ def charset_header(content_type):
         return None
 
 
-def get_text(url, content='text/html', charset='utf-8'):
+def get_text(url, content={'text/html'}, charset='utf-8'):
     response = urlopen(url)
     if response.status != 200:
         raise urllib.error.HTTPError(
@@ -65,7 +65,10 @@ def get_text(url, content='text/html', charset='utf-8'):
     ctype = response.headers.get('content-type')
     if ctype is None:
         raise RuntimeError('None content type for %s' % url)
-    if not ctype.startswith(content):
+    for cnt in content:
+        if ctype.startswith(cnt):
+            break
+    else:
         raise RuntimeError('Incorrect content-type for %s: %s' % (url, ctype))
 
     # get charset from 'Content-type' header
@@ -118,7 +121,7 @@ def embed_css(page, css_urls, base_url=None):
         css_start = page.rindex('<', 0, page.index(url))
         css_end = page.index('>', css_start) + 1
         css_tag = ('<style media="screen" type="text/css">%s</style>' % get_text(
-            complete_url(url, base_url), content='text/css',charset=base_char))
+            complete_url(url, base_url), content={'text/css'}, charset=base_char))
         page = page[:css_start] + css_tag + page[css_end:]
     return page
 
