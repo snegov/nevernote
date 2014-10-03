@@ -127,28 +127,13 @@ def embed_css(page, css_urls, base_url=None):
 
 
 def embed_scripts(page, script_urls, base_url=None):
-    # fetch charset from base URL or use default UTF-8
-    if base_url is not None:
-        hdr = urlopen(base_url).headers.get('content-type')
-        base_char = charset_header(hdr) if hdr is not None else None
-        base_char = base_char or 'utf-8'
     for url in script_urls:
-        if not url:
-            continue
         print('New script: %s' % url)
-        script_link = ' src="%s"' % url
-        script_link_idx = page.index(script_link)
-        script_content = get_text(
-            complete_url(url, base_url),
-            content={'application/x-javascript', 'text/javascript'},
-            charset=base_char
-        )
-        script_start = page.index('>', script_link_idx) + 1
-        script_end = page.index('</script>', script_start)
-        # add script content to page
-        page = page[:script_start] + script_content + page[script_end:]
-        # remove script src link
-        page = page[:script_link_idx] + page[script_link_idx+len(script_link):]
+        try:
+            page = page.replace(
+                url, embedded_image(complete_url(url, base_url)))
+        except urllib.error.HTTPError:
+            pass
     return page
 
 
