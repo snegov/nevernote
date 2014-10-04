@@ -168,7 +168,7 @@ def write_file(page, title, comment=None):
     inc = 0
     while True:
         inc += 1
-        fname = ' '.join(title.replace('/', '_').split()) + write_inc(inc) + '.html'
+        fname = (' '.join(title.replace('/', '_').split()) + write_inc(inc))[:128] + '.html'
         if not os.path.exists(fname):
             break
 
