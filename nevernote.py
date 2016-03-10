@@ -185,7 +185,7 @@ def process_url(url):
 
     try:
         page = get_text(url)
-        parser = TitleParser(strict=False)
+        parser = TitleParser()
         parser.feed(page)
 
         page = embed_pictures(page, parser.images, base_url=url)
