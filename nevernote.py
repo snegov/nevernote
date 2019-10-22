@@ -161,18 +161,29 @@ def process_url(url):
 
 def main():
     parser = argparse.ArgumentParser(
-        description='Nevernote - download pages locally.')
-    parser.add_argument('urls', metavar='URL', type=str, nargs='+',
+        prog="nevernote.py",
+        description="Nevernote - tool for downloading pages locally."
+    )
+    parser.add_argument("-i", "--infile",
+                        help="File with URLs to download")
+    parser.add_argument('urls', metavar='URL', type=str, nargs='*',
                         help='URL of page to download')
     args = parser.parse_args()
 
+    # Process URLs from the file
+    if args.infile:
+        try:
+            fd = open(args.infile, 'r')
+        except OSError as err:
+            print(err)
+            return 1
+        for url in fd.readlines():
+            process_url(url.strip())
+        fd.close()
+
+    # Process URLs from CLI
     for arg in args.urls:
-        if os.path.isfile(arg):
-            print('Found file %s' % arg)
-            for url in (line.strip() for line in open(arg)):
-                process_url(url)
-        else:
-            process_url(arg)
+        process_url(arg)
 
 
 class UrlDuplicateError(Exception):
