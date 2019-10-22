@@ -2,42 +2,15 @@
 
 import argparse
 import base64
-import html.parser
 import os
 import re
 import sys
 from urllib.parse import urlparse
 
 import requests
+from bs4 import BeautifulSoup
 
 URLDUP = re.compile(r'^<!-- URL: (.*) -->$')
-
-
-class TitleParser(html.parser.HTMLParser):
-    def __init__(self, *args, **kwargs):
-        html.parser.HTMLParser.__init__(self, *args, **kwargs)
-        self.images = set()
-        self.css = set()
-        self.scripts = set()
-
-    def handle_starttag(self, name, attribs):
-        if name == 'img':
-            for attr, value in attribs:
-                if attr == 'src':
-                    self.images.add(value)
-        elif name == 'script':
-            for attr, value in attribs:
-                if attr == 'src':
-                    self.scripts.add(value)
-        elif name == 'title':
-            titletag_start = self.rawdata.index('<title')
-            title_start = self.rawdata.index('>', titletag_start) + 1
-            title_end = self.rawdata.index('</title>', title_start)
-            self.title = self.rawdata[title_start:title_end]
-        elif name == 'link':
-            attr_dict = dict(attribs)
-            if attr_dict.get('rel') == 'stylesheet':
-                self.css.add(attr_dict['href'])
 
 
 def get_text(url):
@@ -54,44 +27,6 @@ def get_embedded_binary(url):
     data = response.content
     b64pict = base64.b64encode(data).decode()
     return 'data:%s;base64,%s' % (ctype, b64pict)
-
-
-def embed_pictures(page, pict_urls, base_url=None):
-    """Write all pictures in HTML file"""
-    for url in pict_urls:
-        print('New picture: %s' % url)
-        try:
-            page = page.replace(
-                url, get_embedded_binary(complete_url(url, base_url)))
-        except requests.exceptions.HTTPError:
-            pass
-    return page
-
-
-def embed_css(page, css_urls, base_url=None):
-    """Write all CSS's in HTML file"""
-    for url in css_urls:
-        if not url:
-            continue
-        print('New CSS: %s' % url)
-        css_start = page.rindex('<', 0, page.index(url))
-        css_end = page.index('>', css_start) + 1
-        css_tag = ('<style media="screen" type="text/css">%s</style>' % get_text(
-            complete_url(url, base_url)))
-        page = page[:css_start] + css_tag + page[css_end:]
-    return page
-
-
-def embed_scripts(page, script_urls, base_url=None):
-    """Write all scripts in HTML file"""
-    for url in script_urls:
-        print('New script: %s' % url)
-        try:
-            page = page.replace(
-                url, get_embedded_binary(complete_url(url, base_url)))
-        except requests.exceptions.HTTPError:
-            pass
-    return page
 
 
 def is_downloaded(url: str) -> bool:
@@ -146,19 +81,32 @@ def process_url(url: str, dup_check: bool = False):
     if dup_check and is_downloaded(url):
         return
 
-    try:
-        page = get_text(url)
-        parser = TitleParser()
-        parser.feed(page)
+    page_content = get_text(url)
+    soup = BeautifulSoup(page_content, 'html.parser')
 
-        page = embed_pictures(page, parser.images, base_url=url)
-        page = embed_css(page, parser.css, base_url=url)
-        page = embed_scripts(page, parser.scripts, base_url=url)
-    except requests.exceptions.HTTPError as e:
-        print(e)
-        return False
+    for img_tag in soup.find_all('img'):
+        img_url = complete_url(img_tag['src'], base_url=url)
+        print('New picture: %s' % img_url)
+        img_b64 = get_embedded_binary(img_url)
+        img_tag['src'] = img_b64
 
-    write_file(page, parser.title, comment=url)
+    for link_tag in soup.find_all('link'):
+        link_url = complete_url(link_tag['href'], base_url=url)
+        if 'stylesheet' in link_tag['rel']:
+            print('New CSS: %s' % link_url)
+            css_tag = soup.new_tag('style', media='screen', type='text/css')
+            css_tag.string = get_text(link_url)
+            link_tag.replace_with(css_tag)
+
+    for script_tag in soup.find_all('script'):
+        if script_tag.get('src') is None:
+            continue
+        script_url = complete_url(script_tag['src'], base_url=url)
+        print('New script: %s' % script_url)
+        script_b64 = get_embedded_binary(script_url)
+        script_tag['src'] = script_b64
+
+    write_file(soup.prettify(), soup.title.text, comment=url)
 
 
 def main():
@@ -190,10 +138,6 @@ def main():
     # Process URLs from CLI
     for arg in args.urls:
         process_url(arg, dup_check=args.dup_check)
-
-
-class UrlDuplicateError(Exception):
-    pass
 
 
 if __name__ == '__main__':
