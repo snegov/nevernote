@@ -106,7 +106,7 @@ def process_url(url: str, dup_check: bool = False):
         script_b64 = get_embedded_binary(script_url)
         script_tag['src'] = script_b64
 
-    write_file(soup.prettify(), soup.title.text, comment=url)
+    write_file(str(soup), soup.title.text, comment=url)
 
 
 def main():
