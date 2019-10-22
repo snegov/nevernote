@@ -94,16 +94,19 @@ def embed_scripts(page, script_urls, base_url=None):
     return page
 
 
-def url_duplicate(url):
+def is_downloaded(url: str) -> bool:
     """Check if url was already downloaded"""
     for htmlfile in os.listdir(path='.'):
         if not htmlfile.endswith('.html'):
             continue
+
         with open(htmlfile) as h:
             h_url = h.readline()
             if url in URLDUP.findall(h_url):
-                raise UrlDuplicateError(
-                    'URL is already saved in file "%s"' % htmlfile)
+                print("URL is already saved in file '%s'" % htmlfile)
+                return True
+
+    return False
 
 
 def write_file(page, title, comment=None):
@@ -135,13 +138,12 @@ def complete_url(url, base_url=None):
     return url
 
 
-def process_url(url):
+def process_url(url: str, dup_check: bool = False):
     """Save single URL to a file"""
+    url = url.strip()
     print('Processing URL: %s' % url)
-    try:
-        url_duplicate(url)
-    except UrlDuplicateError as e:
-        print(e)
+
+    if dup_check and is_downloaded(url):
         return
 
     try:
@@ -166,7 +168,11 @@ def main():
     )
     parser.add_argument("-i", "--infile",
                         help="File with URLs to download")
+    parser.add_argument("-s", "--skip-dups", action="store_false",
+                        default=True, dest="dup_check",
+                        help="Rewrite already downloaded files")
     parser.add_argument('urls', metavar='URL', type=str, nargs='*',
+                        default=sys.stdin,
                         help='URL of page to download')
     args = parser.parse_args()
 
@@ -178,12 +184,12 @@ def main():
             print(err)
             return 1
         for url in fd.readlines():
-            process_url(url.strip())
+            process_url(url, dup_check=args.dup_check)
         fd.close()
 
     # Process URLs from CLI
     for arg in args.urls:
-        process_url(arg)
+        process_url(arg, dup_check=args.dup_check)
 
 
 class UrlDuplicateError(Exception):
