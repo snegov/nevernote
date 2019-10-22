@@ -10,8 +10,6 @@ from urllib.parse import urlparse
 
 import requests
 
-
-class UrlDuplicateError(Exception): pass
 URLDUP = re.compile(r'^<!-- URL: (.*) -->$')
 
 
@@ -48,8 +46,8 @@ def get_text(url):
     return response.text
 
 
-def embedded_image(url):
-    '''Download content from URL and return bytes if target is image'''
+def get_embedded_binary(url):
+    """Download content from URL and return bytes if target is image"""
     response = requests.get(url)
     response.raise_for_status()
     ctype = response.headers.get('Content-Type')
@@ -59,17 +57,19 @@ def embedded_image(url):
 
 
 def embed_pictures(page, pict_urls, base_url=None):
+    """Write all pictures in HTML file"""
     for url in pict_urls:
         print('New picture: %s' % url)
         try:
             page = page.replace(
-                url, embedded_image(complete_url(url, base_url)))
+                url, get_embedded_binary(complete_url(url, base_url)))
         except requests.exceptions.HTTPError:
             pass
     return page
 
 
 def embed_css(page, css_urls, base_url=None):
+    """Write all CSS's in HTML file"""
     for url in css_urls:
         if not url:
             continue
@@ -83,18 +83,20 @@ def embed_css(page, css_urls, base_url=None):
 
 
 def embed_scripts(page, script_urls, base_url=None):
+    """Write all scripts in HTML file"""
     for url in script_urls:
         print('New script: %s' % url)
         try:
             page = page.replace(
-                url, embedded_image(complete_url(url, base_url)))
+                url, get_embedded_binary(complete_url(url, base_url)))
         except requests.exceptions.HTTPError:
             pass
     return page
 
 
 def url_duplicate(url):
-    for htmlfile in os.listdir():
+    """Check if url was already downloaded"""
+    for htmlfile in os.listdir(path='.'):
         if not htmlfile.endswith('.html'):
             continue
         with open(htmlfile) as h:
@@ -105,6 +107,7 @@ def url_duplicate(url):
 
 
 def write_file(page, title, comment=None):
+    """Save HTML to file on a disk"""
     write_inc = lambda i: '_%d' % i if i > 1 else ''
     inc = 0
     while True:
@@ -120,7 +123,8 @@ def write_file(page, title, comment=None):
         a_file.write(page)
 
 
-def complete_url(url, base_url):
+def complete_url(url, base_url=None):
+    """Create absolute URL from relative paths"""
     base_up = urlparse(base_url)
     if base_url is not None:
         up = urlparse(url)
@@ -132,6 +136,7 @@ def complete_url(url, base_url):
 
 
 def process_url(url):
+    """Save single URL to a file"""
     print('Processing URL: %s' % url)
     try:
         url_duplicate(url)
@@ -158,7 +163,7 @@ def main():
     parser = argparse.ArgumentParser(
         description='Nevernote - download pages locally.')
     parser.add_argument('urls', metavar='URL', type=str, nargs='+',
-        help='URL of page to download')
+                        help='URL of page to download')
     args = parser.parse_args()
 
     for arg in args.urls:
@@ -168,6 +173,10 @@ def main():
                 process_url(url)
         else:
             process_url(arg)
+
+
+class UrlDuplicateError(Exception):
+    pass
 
 
 if __name__ == '__main__':
