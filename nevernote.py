@@ -92,7 +92,7 @@ def process_url(url: str, dup_check: bool = False):
 
     for link_tag in soup.find_all('link'):
         link_url = complete_url(link_tag['href'], base_url=url)
-        if 'stylesheet' in link_tag['rel']:
+        if link_tag.get('rel') and 'stylesheet' in link_tag['rel']:
             print('New CSS: %s' % link_url)
             css_tag = soup.new_tag('style', media='screen', type='text/css')
             css_tag.string = get_text(link_url)
