@@ -6,10 +6,9 @@ import html.parser
 import os
 import re
 import sys
-import urllib.error
 from urllib.parse import urlparse
-from urllib.request import urlopen
-import zlib
+
+import requests
 
 
 class UrlDuplicateError(Exception): pass
@@ -43,56 +42,18 @@ class TitleParser(html.parser.HTMLParser):
                 self.css.add(attr_dict['href'])
 
 
-def charset_header(content_type):
-    """ Parse charset from 'content-type' header
-    :param content_type: string
-    :return: string with character set
-    """
-    if 'charset' in content_type:
-        return content_type.split(';')[1].split('=')[1]
-    else:
-        return None
-
-
-def get_text(url, content={'text/html'}, charset='utf-8'):
-    response = urlopen(url)
-    if response.status != 200:
-        raise urllib.error.HTTPError(
-            url, response.status,
-            'Incorrect HTTP status (%d, %s) for %s' % (response.status, response.reason, url),
-            None, None
-        )
-    ctype = response.headers.get('content-type')
-    if ctype is None:
-        raise RuntimeError('None content type for %s' % url)
-    for cnt in content:
-        if ctype.startswith(cnt):
-            break
-    else:
-        raise RuntimeError('Incorrect content-type for %s: %s' % (url, ctype))
-
-    # get charset from 'Content-type' header
-    charset = charset_header(ctype) or charset
-
-    if response.info().get('Content-Encoding') == 'gzip':
-        data = zlib.decompress(response.read(), 16+zlib.MAX_WBITS)
-    else:
-        data = response.read()
-    page = data.decode(charset.lower())
-    return page
+def get_text(url):
+    response = requests.get(url)
+    response.raise_for_status()
+    return response.text
 
 
 def embedded_image(url):
     '''Download content from URL and return bytes if target is image'''
-    response = urlopen(url)
-    if response.status != 200:
-        raise urllib.error.HTTPError(
-            url, response.status,
-            'Incorrect HTTP status (%d, %s) for %s' % (response.status, response.reason, url),
-            None, None
-        )
+    response = requests.get(url)
+    response.raise_for_status()
     ctype = response.headers.get('Content-Type')
-    data = response.read()
+    data = response.content
     b64pict = base64.b64encode(data).decode()
     return 'data:%s;base64,%s' % (ctype, b64pict)
 
@@ -103,17 +64,12 @@ def embed_pictures(page, pict_urls, base_url=None):
         try:
             page = page.replace(
                 url, embedded_image(complete_url(url, base_url)))
-        except urllib.error.HTTPError:
+        except requests.exceptions.HTTPError:
             pass
     return page
 
 
 def embed_css(page, css_urls, base_url=None):
-    # fetch charset from base URL or use default UTF-8
-    if base_url is not None:
-        hdr = urlopen(base_url).headers.get('content-type')
-        base_char = charset_header(hdr) if hdr is not None else None
-        base_char = base_char or 'utf-8'
     for url in css_urls:
         if not url:
             continue
@@ -121,7 +77,7 @@ def embed_css(page, css_urls, base_url=None):
         css_start = page.rindex('<', 0, page.index(url))
         css_end = page.index('>', css_start) + 1
         css_tag = ('<style media="screen" type="text/css">%s</style>' % get_text(
-            complete_url(url, base_url), content={'text/css'}, charset=base_char))
+            complete_url(url, base_url)))
         page = page[:css_start] + css_tag + page[css_end:]
     return page
 
@@ -132,7 +88,7 @@ def embed_scripts(page, script_urls, base_url=None):
         try:
             page = page.replace(
                 url, embedded_image(complete_url(url, base_url)))
-        except urllib.error.HTTPError:
+        except requests.exceptions.HTTPError:
             pass
     return page
 
@@ -191,7 +147,7 @@ def process_url(url):
         page = embed_pictures(page, parser.images, base_url=url)
         page = embed_css(page, parser.css, base_url=url)
         page = embed_scripts(page, parser.scripts, base_url=url)
-    except urllib.error.HTTPError as e:
+    except requests.exceptions.HTTPError as e:
         print(e)
         return False
 
