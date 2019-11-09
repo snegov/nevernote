@@ -21,8 +21,12 @@ def get_text(url):
 
 def get_embedded_binary(url):
     """Download content from URL and return bytes if target is image"""
-    response = requests.get(url)
-    response.raise_for_status()
+    try:
+        response = requests.get(url)
+        response.raise_for_status()
+    except requests.exceptions.RequestException:
+        return ''
+
     ctype = response.headers.get('Content-Type')
     data = response.content
     b64pict = base64.b64encode(data).decode()
